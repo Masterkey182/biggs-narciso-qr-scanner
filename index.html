@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+
+  <title>Biggs & Narciso | QR Scanner</title>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #f3f5f8;
+      font-family: Arial, sans-serif;
+      color: #183153;
+      text-align: center;
+    }
+
+    .container {
+      max-width: 460px;
+      margin: 20px auto;
+      padding: 25px;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      font-size: 25px;
+      margin-bottom: 5px;
+    }
+
+    h2 {
+      font-size: 16px;
+      font-weight: normal;
+      color: #555;
+    }
+
+    button {
+      display: block;
+      width: 100%;
+      padding: 15px;
+      margin-top: 12px;
+      border: none;
+      border-radius: 8px;
+      background: #183153;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+    }
+
+    #reader {
+      width: 100%;
+      margin-top: 20px;
+      overflow: hidden;
+      border-radius: 10px;
+    }
+
+    #status {
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: bold;
+      overflow-wrap: anywhere;
+    }
+
+    #detectedCode {
+      margin-top: 12px;
+      font-size: 22px;
+      font-weight: bold;
+      color: #16803c;
+      overflow-wrap: anywhere;
+    }
+
+    .note {
+      margin-top: 20px;
+      color: #777;
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <h1>BIGGS & NARCISO</h1>
+
+    <h2>Worker Attendance System</h2>
+
+    <h2>Automatic QR Code Scanner</h2>
+
+    <button id="startButton" onclick="startScanner()">
+      OPEN IPHONE CAMERA
+    </button>
+
+    <button onclick="stopScanner()">
+      STOP CAMERA
+    </button>
+
+    <div id="reader"></div>
+
+    <div id="status">
+      Camera not started.
+    </div>
+
+    <div id="detectedCode"></div>
+
+    <p class="note">
+      Scanner test mode.
+      Attendance registration is not enabled yet.
+    </p>
+
+  </div>
+
+  <script>
+
+    let scanner = null;
+    let cameraRunning = false;
+    let lastCode = "";
+    let lastScanTime = 0;
+
+    const statusElement =
+      document.getElementById("status");
+
+    const detectedCodeElement =
+      document.getElementById("detectedCode");
+
+    const startButton =
+      document.getElementById("startButton");
+
+    async function startScanner() {
+
+      if (cameraRunning) {
+        return;
+      }
+
+      if (typeof Html5Qrcode === "undefined") {
+        statusElement.textContent =
+          "QR scanner library could not load.";
+        return;
+      }
+
+      startButton.disabled = true;
+
+      statusElement.textContent =
+        "Opening iPhone camera...";
+
+      try {
+
+        scanner = new Html5Qrcode("reader");
+
+        await scanner.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: function(width, height) {
+
+              const size = Math.floor(
+                Math.min(width, height) * 0.75
+              );
+
+              return {
+                width: size,
+                height: size
+              };
+            }
+          },
+
+          function(decodedText) {
+
+            const code = decodedText.trim();
+            const now = Date.now();
+
+            if (
+              code === lastCode &&
+              now - lastScanTime < 3000
+            ) {
+              return;
+            }
+
+            lastCode = code;
+            lastScanTime = now;
+
+            detectedCodeElement.textContent = code;
+
+            statusElement.textContent =
+              "QR CODE DETECTED SUCCESSFULLY";
+
+            if (navigator.vibrate) {
+              navigator.vibrate(150);
+            }
+
+          },
+
+          function(errorMessage) {
+            // No QR Code visible yet.
+          }
+        );
+
+        cameraRunning = true;
+
+        statusElement.textContent =
+          "Camera ready. Point at a QR Code.";
+
+      } catch (error) {
+
+        statusElement.textContent =
+          "Camera error: " +
+          (error.message || String(error));
+
+        scanner = null;
+
+      } finally {
+
+        startButton.disabled = false;
+
+      }
+    }
+
+    async function stopScanner() {
+
+      if (!scanner || !cameraRunning) {
+        return;
+      }
+
+      try {
+
+        await scanner.stop();
+        scanner.clear();
+
+        cameraRunning = false;
+        scanner = null;
+
+        statusElement.textContent =
+          "Camera stopped.";
+
+      } catch (error) {
+
+        statusElement.textContent =
+          "Error stopping camera: " +
+          (error.message || String(error));
+
+      }
+    }
+
+  </script>
+
+</body>
+</html>
